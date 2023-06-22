@@ -1,0 +1,41 @@
+version: '3.7'
+
+x-logging:
+  &default-logging
+  driver: "json-file"
+  options:
+    max-file: "10"
+    max-size: "10M"
+
+services:
+  watcher:
+    env_file:
+      - .env
+    container_name: watcher
+    build:
+      context: .
+    volumes:
+      - ./volumes/watcher:/tmp/watcher
+    logging: *default-logging
+
+  alert-weekly:
+    env_file:
+      - .env
+    container_name: alert
+    logging: *default-logging
+    build:
+      context: .
+    volumes:
+      - ./volumes/watcher:/tmp/watcher/
+    command: python3 alert.py -d /tmp/watcher/ -f /tmp/watcher/hosts.json # overriding default command
+
+  alert-monthly:
+    env_file:
+      - .env
+    container_name: alert
+    logging: *default-logging
+    build:
+      context: .
+    volumes:
+      - ./volumes/watcher:/tmp/watcher/
+    command: python3 alert.py -n 30 -d /tmp/watcher/ -f /tmp/watcher/hosts.json # overriding default command

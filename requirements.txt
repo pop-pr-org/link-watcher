@@ -1,0 +1,7 @@
+influxdb==5.3.1
+zulu==2.0.0
+requests==2.25.1
+flake8==6.0.0
+flake8-black==0.3.6
+pynetbox==7.0.1
+python-dotenv==1.0.0

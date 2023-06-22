@@ -1,0 +1,28 @@
+{
+    "LINKS": [
+        {
+            "LINK_SPEED": 100000000,
+            "LINK_NAME": "HOST_A",
+            "LINK_MAX_TRAFFIC_PERCENTAGE": 0.8,
+            "LINK_HISTERESYS": 0.05
+        },
+        {
+            "LINK_SPEED": 200000000,
+            "LINK_NAME": "HOST_B",
+            "LINK_MAX_TRAFFIC_PERCENTAGE": 0.8,
+            "LINK_HISTERESYS": 0.05
+        },
+        {
+            "LINK_SPEED": 100000000,
+            "LINK_NAME": "HOST_C",
+            "LINK_MAX_TRAFFIC_PERCENTAGE": 0.8,
+            "LINK_HISTERESYS": 0.05
+        },
+        {
+            "LINK_SPEED": 100000000,
+            "LINK_NAME": "HOST_D",
+            "LINK_MAX_TRAFFIC_PERCENTAGE": 0.8,
+            "LINK_HISTERESYS": 0.05
+        }
+    ]
+}
