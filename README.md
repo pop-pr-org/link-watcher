@@ -55,7 +55,7 @@ todas as informações são necessárias para que o script consiga se conectar a
 
 No PoP-PR, utilizamos o [InfluxDB](https://www.influxdata.com/) como banco de dados temporal, mas o script pode ser adaptado para utilizar outros bancos de dados temporais.
 Para isso, uma nova classe deverá ser implementada no diretório [tsdb](https://gitlab.pop-pr.rnp.br/pop-pr/link-watcher/-/tree/develop/tsdb) \
- para que o script consiga se conectar e fazer queries. Existe um exemplo usando o [influxDB](https://gitlab.pop-pr.rnp.br/pop-pr/link-watcher/-/blob/main/tsdb/influx_example.py)
+ para que o script consiga se conectar e fazer queries. Existe um exemplo usando o [influxDB](https://github.com/PoP-PR/link-watcher/blob/main/tsdb/influx_example.py)
 
 ***
 
@@ -116,9 +116,9 @@ IRM_HOST="<url da sua fonte da verdade>"
 IRM_TOKEN="<token super secreto>"
 ```
 
-Possivelmente, será necessário, adaptar para a sua fonte da verdade com o `[IRM](https://www.networkcomputing.com/data-centers/challenge-it-infrastructure-resource-management) que você utiliza`.
+Possivelmente, será necessário, adaptar para a sua fonte da verdade com o [`IRM`](https://www.networkcomputing.com/data-centers/challenge-it-infrastructure-resource-management) que você utiliza.
 
-O PoP-PR utiliza o [Netbox](https://docs.netbox.dev/en/stable) como fonte da verdade, e o script já está adaptado para utilizar ele. Existe um exemplo de como utilizar o irm do netbox no arquivo [netbox.py.sample](https://gitlab.pop-pr.rnp.br/pop-pr/link-watcher/-/blob/main/irm/netbox.py.sample)
+O PoP-PR utiliza o [Netbox](https://docs.netbox.dev/en/stable) como fonte da verdade, e o script já está adaptado para utilizar ele. Existe um exemplo de como utilizar o irm do netbox no arquivo [netbox.py.sample](https://github.com/PoP-PR/link-watcher/blob/main/irm/netbox.py.sample)
 
 ***
 
@@ -233,7 +233,7 @@ Os logs do script são armazenados no volume do container, dentro do diretório 
 
 ## Como o PoP-PR utiliza o script
 
-Nosso script é executado diariamente através de um cronjob em um dos servidores do PoP-PR. Um sample do cronjob pode ser encontrado em [link-watcher.cron.sample](https://gitlab.pop-pr.rnp.br/pop-pr/link-watcher/-/blob/main/cron/link-watcher.cron.sample).
+Nosso script é executado diariamente através de um cronjob em um dos servidores do PoP-PR. Um sample do cronjob pode ser encontrado em [link-watcher.cron.sample](https://github.com/PoP-PR/link-watcher/blob/main/cron/link-watcher.cron.sample).
 
 ### Cronjobs
 
@@ -262,7 +262,7 @@ Os relatórios gerados diariamente ficam armazenados no volume do container junt
 
 O script `alert.py` serve para nos avisar toda semana sobre links que estão com tráfego acima do limite configurado. Ele também é executado através de um cronjob.
 
-Caso você também utilize o [Alerta](https://docs.alerta.io/quick-start.html), basta configurar as variáveis no seu `[.env](https://gitlab.pop-pr.rnp.br/pop-pr/link-watcher/-/blob/main/.env.sample)`.
+Caso você também utilize o [Alerta](https://docs.alerta.io/quick-start.html), basta configurar as variáveis no seu [`.env`](https://github.com/PoP-PR/link-watcher/blob/main/.env.sample).
 
 Caso contrário, você pode criar um script para enviar os alertas da forma que preferir.
 
@@ -273,8 +273,7 @@ Caso contrário, você pode criar um script para enviar os alertas da forma que 
 - [X] criar módulos para extrair informações de fontes da verdade. Ex.: netbox, CMDB, etc.
 - [x] gerar o arquivo de configuração `input.json` sempre após a execução do script
 - [ ] cuidar com mais de um circuito em um site
-- [ ] modularizar as etapas do script
-- [ ] separar em input, processamento e output
+- [ ] separar a main em input, processamento e output
 - [ ] modularizar estas 3 etapas
 - [ ] usar o padrão de projeto strategy para modularizar as fontes da verdade e bases de dados
 - [ ] adicionar healthcheck
