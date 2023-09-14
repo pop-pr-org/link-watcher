@@ -12,7 +12,7 @@ from config import LOGGER_NAME
 logger = getLogger(LOGGER_NAME)
 
 
-class Netbox(Irm):
+class IrmExtractor(Irm):
     def connect(url: str, token: str) -> pynetbox.api:
         """
         Connect to Netbox
@@ -52,27 +52,30 @@ class Netbox(Irm):
         all_sites = list(all_sites)
         logger.info("Got %d sites from Netbox", len(all_sites))
 
+        # empty dict to store the info
         site_circuits = {"LINKS": []}
-        # every site may have one or more circuits
-        for site in all_sites:
-            # get all circuits from the site
-            circuits = irm_api.circuits.circuits.filter(
-                site_id=site.id, status="active"
+
+        # retrieve all circuits from Netbox with type RNP and status active
+        circuit_rnp = irm_api.circuits.circuit_types.get(slug="rnp")
+        circuits = irm_api.circuits.circuits.filter(
+            type_id=circuit_rnp.id, status="active"
+        )
+
+        # for each circuit, get the site name and the speed
+        for circuit in circuits:
+            # [FIX] should be using circuit.termination_z.site.slug
+            # but this change will break the alerting system
+            site_name = circuit.termination_z.site
+            circuit_speed = circuit.commit_rate * 1000
+
+            # ignore sites in the ignore list
+            if site_name in ignore_list:
+                continue
+
+            site_circuits["LINKS"].append(
+                {"LINK_SPEED": circuit_speed, "LINK_NAME": str(site_name)}
             )
-            # if there are circuits in the site
-            if circuits is not None:
-                circuits = list(circuits)  # turn the object into a list
-                # for every circuit in the site
-                for circuit in circuits:
-                    # filter circuits where the type is not "RNP"
-                    if circuit.type.name == "RNP":
-                        if site.name in ignore_list:
-                            continue
-                        # get the commit rate of the circuit in bits
-                        circuit_speed = circuit.commit_rate * 1000
-                        site_circuits["LINKS"].append(
-                            {"LINK_SPEED": circuit_speed, "LINK_NAME": site.name}
-                        )
 
         logger.info("Got %d circuits from Netbox", len(site_circuits["LINKS"]))
+
         return site_circuits
