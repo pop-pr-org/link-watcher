@@ -9,16 +9,19 @@ import json
 
 
 from pprint import pprint
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil import parser
 from pathlib import Path
 from requests.auth import HTTPBasicAuth
 from os.path import join
+from os import environ
+
 
 from utils import save_json, json_reader
 from logger import init_logging
-from tsdb.influx import INFLUX
+from tsdb.TsdbExtractor import TsdbExtractor
 from formatters.hosts import Hosts
-from irm.netbox import Netbox
+from irm.IrmExtractor import IrmExtractor
 
 from config import (
     LOGGER_NAME,
@@ -28,15 +31,22 @@ from config import (
     IRM_HOST,
     IRM_TOKEN,
     TSDB_AUTH,
+    TSDB_TIME_FORMAT,
+    HOSTS_INFO_FILE,
+    TIME_BEGIN,
+    TIME_END,
+    IGNORE_LIST,
+    REPORT_OUTPUT_PATH,
 )
 
 
 # arguments
 def process_args():
     parser = argparse.ArgumentParser(
-        description="A script to check if the traffic of a given list of links \
-        is exceding the configured thresholds.",
+        description="A script to check if the traffic of a given list of links\n\
+is exceding the configured thresholds.",
         add_help=True,
+        formatter_class=argparse.RawTextHelpFormatter,
     )
 
     parser.add_argument(
@@ -51,20 +61,67 @@ def process_args():
         "-o",
         "--output",
         type=str,
-        default="./reports/",
+        default=REPORT_OUTPUT_PATH,
         action="store",
         help="path where the json output will be stored",
     )
 
-    parser.add_argument(
-        "--alert",
+    specify_time_group = parser.add_argument_group(
+        "Time range",
+        "Used to specify the time range to be used in the query.\n\
+If not given, the default time range will be used(from today {}h to today {}h).\n\
+BOTH FLAGS MUST BE BETWEEN QUOTES".format(
+            TIME_BEGIN, TIME_END
+        ),
+    )
+
+    specify_time_group.add_argument(
+        "--time-begin",
         type=str,
-        default="",
         action="store",
+        default=datetime.now()
+        .replace(hour=TIME_BEGIN, minute=0, second=0)
+        .strftime(TSDB_TIME_FORMAT),
+        help='starting time to be used in the query. In the format: "YYYY-MM-DD"',
+    )
+
+    specify_time_group.add_argument(
+        "--time-end",
+        type=str,
+        action="store",
+        default=datetime.now()
+        .replace(hour=TIME_END, minute=0, second=0)
+        .strftime(TSDB_TIME_FORMAT),
+        help='Ending time to be used in the query. In the format: "YYYY-MM-DD"',
+    )
+
+    alert_group = parser.add_argument_group(
+        "alert",
+        "Options to send alerts.\n\
+If none is given, the script will only check the links and generate the report.",
+    )
+    alert_group.add_argument(
+        "--alert",
+        action="store_true",
         help="If given, ONLY sends the alert",
     )
 
+    alert_group.add_argument(
+        "-n",
+        "--number_of_days",
+        type=int,
+        action="store",
+        help="Number of days to be checked and alerted",
+    )
+
     args = parser.parse_args()
+
+    # checking if the user provided a valid time range
+    check_tsdb_time_interval(args, parser)
+    check_hour_interval()
+    check_time_range_dependency(args, parser)
+    set_tsdb_time_interval(args.time_begin, args.time_end)
+
     return args
 
 
@@ -80,25 +137,163 @@ def main():
     logger.info("args used: %s", args)
     output_path = Path(args.output)
 
+    # checking if wants a range of days to check
+    qntd_days_to_check = extract_qntd_days_to_check()
+    logger.info("number of days to check: %s", qntd_days_to_check)
+
     # getting hosts info
     hosts_config = choose_host_config_source(args.file, output_path)
-    db_client = INFLUX.connect(INFLUX, **TSDB_AUTH)
+    db_client = TsdbExtractor.connect(TsdbExtractor, **TSDB_AUTH)
 
-    # creating reports dict
-    reports = {}
-    date = datetime.now().strftime("%d-%m-%y")
-    reports["Data"] = date
+    # checking each day
+    for i in range(0, qntd_days_to_check + 1):
+        # changing current report time interval
+        current_report_query_date_interval = change_tsdb_time_interval(i)
+        set_tsdb_time_interval(
+            current_report_query_date_interval["begin"],
+            current_report_query_date_interval["end"],
+        )
+        # creating reports dict
+        current_report = {}
+        current_report["Data"] = set_report_date()
+        # checking each link
+        for link_configs in hosts_config["LINKS"]:
+            if link_configs["LINK_NAME"] in IGNORE_LIST:
+                logger.info(
+                    "link %s is marked to be ignored, skipping it",
+                    link_configs["LINK_NAME"],
+                )
+                continue
+            send_link_to_api(link_configs["LINK_NAME"])
+            check_exceeded_intervals(db_client, current_report, link_configs)
 
-    # checking each link
-    for link_configs in hosts_config["LINKS"]:
-        # send_link_to_api(link_configs["LINK_NAME"]) working on it
-        check_exceeded_intervals(db_client, reports, link_configs)
-
-    # saving json output
-    file_path = create_report_file_name(output_path)
-    save_json(reports, file_path)
+        # saving json output
+        file_path = create_report_file_name(current_report["Data"], output_path)
+        save_json(current_report, file_path)
 
     logger.info("finished watcher.py")
+
+
+def check_hour_interval():
+    """
+    Checks if the TIME_BEGIN and TIME_END vars time interval is valid
+    """
+    if TIME_BEGIN > TIME_END:
+        logger.error(
+            "TIME_BEGIN var is greater than TIME_END var. Check your .env file and fix it"
+        )
+        exit(1)
+    return
+
+
+def change_tsdb_time_interval(iterator: int) -> dict:
+    """
+    Calculates the next time interval to be used in the query
+    @return: dict with the new time interval
+    """
+
+    # this needs to be checked because the first time the script runs,
+    # it shouldn't add 1 day to the begin date
+    sum_day = 0 if iterator == 0 else 1
+
+    current_report_query_date_begin = datetime.strptime(
+        environ["QUERY_BEGIN"], TSDB_TIME_FORMAT
+    ) + timedelta(days=sum_day)
+
+    current_report_query_date_end = current_report_query_date_begin.replace(
+        hour=TIME_END
+    )
+    current_report_query_date_begin = current_report_query_date_begin.replace(
+        hour=TIME_BEGIN
+    )
+
+    # formatting dates to query TSDB
+    current_report_query_date_begin = current_report_query_date_begin.strftime(
+        TSDB_TIME_FORMAT
+    )
+    current_report_query_date_end = current_report_query_date_end.strftime(
+        TSDB_TIME_FORMAT
+    )
+
+    current_report_query_date_interval = {
+        "begin": current_report_query_date_begin,
+        "end": current_report_query_date_end,
+    }
+
+    return current_report_query_date_interval
+
+
+def set_tsdb_time_interval(time_begin: str, time_end: str):
+    """
+    Set the environment variables QUERY_BEGIN and QUERY_END to be used in the query
+    """
+    time_begin = parser.parse(time_begin).replace(hour=TIME_BEGIN, minute=0, second=0)
+    time_end = parser.parse(time_end).replace(hour=TIME_END, minute=0, second=0)
+    # setting env vars
+    environ["QUERY_BEGIN"] = str(time_begin)
+    environ["QUERY_END"] = str(time_end)
+
+
+def set_report_date() -> datetime:
+    report_date = environ["QUERY_BEGIN"].split(" ")[0]
+    report_date = datetime.strptime(report_date, "%Y-%m-%d")
+    # set the report date to %d-%m-%y
+    report_date = report_date.strftime("%d-%m-%y")
+    return report_date
+
+
+def extract_qntd_days_to_check() -> int:
+    """
+    Extracts the number of days to check from the --time-begin and --time-end flags
+    @return: number of days to check
+    """
+
+    # extracting env vars
+    time_begin = environ["QUERY_BEGIN"]
+    time_end = environ["QUERY_END"]
+
+    # parsing dates to datetime
+    time_begin = str(time_begin)
+    time_end = str(time_end)
+
+    # formatting dates to query TSDB
+    time_begin = datetime.strptime(time_begin, TSDB_TIME_FORMAT)
+    time_end = datetime.strptime(time_end, TSDB_TIME_FORMAT)
+
+    qntd_days_to_check = (time_end - time_begin).days
+    return qntd_days_to_check
+
+
+def check_time_range_dependency(
+    args: argparse.Namespace, parser: argparse.ArgumentParser
+):
+    """
+    Checks if both time_start and time_end are given
+    """
+
+    if (args.time_begin and not args.time_end) or (
+        args.time_end and not args.time_begin
+    ):
+        logger.error("--time-begin and --time-end are required together")
+        parser.error("--time-begin and --time-end are required together")
+
+    return
+
+
+def check_tsdb_time_interval(args: argparse.Namespace, parser: argparse.ArgumentParser):
+    """
+    Checks if the time interval is valid
+    """
+    time_begin = args.time_begin
+    time_end = args.time_end
+
+    if time_begin > time_end:
+        logger.error("flag time-begin is greater than time-end")
+        logger.error("time-begin: %s", time_begin)
+        logger.error("time-end: %s", time_end)
+        parser.error("flag time-begin is greater than time-end")
+
+    return
 
 
 def choose_host_config_source(args_file: str, output_path) -> dict:
@@ -112,19 +307,18 @@ def choose_host_config_source(args_file: str, output_path) -> dict:
     else:
         logger.info("retrieving info from IRM at: %s", IRM_HOST)
         hosts_config = Hosts.format_links(extract_hosts_info())
-        with open("/tmp/watcher/hosts.json", "w+") as outfile:
+        with open(HOSTS_INFO_FILE, "w+") as outfile:
             logger.info("droppping hosts.json at: %s", output_path)
             json.dump(hosts_config, outfile, indent=6)
     return hosts_config
 
 
-def create_report_file_name(output_path: str) -> str:
+def create_report_file_name(current_report_date: str, output_path: str) -> str:
     """
     Creates the name of the json output file
     Returns the relative path
     """
-    today = str(datetime.now().strftime("%d-%m-%y"))
-    file_name = "reports_" + today + ".json"
+    file_name = "reports_" + current_report_date + ".json"
     # creating absolute path
     file_path = join(output_path, file_name)
     return file_path
@@ -143,8 +337,8 @@ def extract_hosts_info() -> dict:
         ]
     }
     """
-    netbox_api = Netbox.connect(IRM_HOST, IRM_TOKEN)
-    hosts_info = Netbox.get_hosts_speed(netbox_api)
+    netbox_api = IrmExtractor.connect(IRM_HOST, IRM_TOKEN)
+    hosts_info = IrmExtractor.get_hosts_speed(netbox_api)
     return hosts_info
 
 
@@ -394,10 +588,10 @@ def check_exceeded_intervals(db_client, reports: dict, link_configs: dict):
     # queries for rx and tx
     logger.info("checking ifaces for %s", link_configs["LINK_NAME"])
 
-    data = INFLUX.query_iface_traffic(link_configs, "rx", db_client)
+    data = TsdbExtractor.query_iface_traffic(link_configs, "rx", db_client)
     check_link_data(data, reports, link_configs, "rx")
 
-    data = INFLUX.query_iface_traffic(link_configs, "tx", db_client)
+    data = TsdbExtractor.query_iface_traffic(link_configs, "tx", db_client)
     check_link_data(data, reports, link_configs, "tx")
 
     # send_api_request(link_configs, reports[link_configs["LINK_NAME"]])
