@@ -246,7 +246,7 @@ Nesse caso, o script irá gerar um relatório para o dia atual, mas **não irá 
 
 ## Output
 
-Ao **fim da execução**, o script irá criar um arquivo `json` no local indicado através da flag `-o` no [Dockerfile](https://github.com/pop-pr-org/link-watcher/tree/main/Dockerfile#L15) com uma **lista de relatórios para cada link** no seguinte formato:
+Ao **fim da execução**, o script irá criar um arquivo `json` no local indicado através da variável `REPORT_OUTPUT_PATH` no [.env](https://github.com/pop-pr-org/link-watcher/tree/main/.env.sample) com uma **lista de relatórios para cada link** no seguinte formato:
 
 ```json
 {
@@ -370,7 +370,7 @@ Os relatórios gerados diariamente ficam armazenados no volume do container junt
 
 O script `alert.py` serve para nos avisar toda semana sobre links que estão com tráfego acima do limite configurado. Ele também é executado através de um cronjob.
 
-Caso você também utilize o [Alerta](https://docs.alerta.io/quick-start.html), basta configurar as variáveis no seu `[.env](https://github.com/pop-pr-org/link-watcher/tree/main/.env.sample)`.
+Caso você também utilize o [Alerta](https://docs.alerta.io/quick-start.html), basta configurar as variáveis no seu [.env](https://github.com/pop-pr-org/link-watcher/tree/main/.env.sample).
 
 Caso contrário, você pode criar um script para enviar os alertas da forma que preferir.
 
