@@ -2,16 +2,18 @@
 # coding=utf-8
 
 from pprint import pprint
-from tsdb import TSDB
+from datetime import datetime, timedelta
+from tsdb import Tsdb
 from influxdb import InfluxDBClient
 from logging import getLogger
+from os import environ
 
-from config import TIME_RANGE, LOGGER_NAME
+from config import LOGGER_NAME
 
 logger = getLogger(LOGGER_NAME)
 
 
-class INFLUX(TSDB):
+class TsdbExtractor(Tsdb):
     def connect(self, host, port, username, password, database):
         """
         Connect to TSDB and return the client object
@@ -41,19 +43,33 @@ class INFLUX(TSDB):
         [
             {
                 "time": timestamp,
+
                 "value": value in bits
             },
         ]
 
         """
+
+        starting_time = environ["QUERY_BEGIN"]
+        starting_time = datetime.strptime(starting_time, "%Y-%m-%d %H:%M:%S")
+        # set the time format
+        # Influx is using utc so we need to add 3 hours to get the correct time
+        # during the report building process we will subtract 3 hours
+        starting_time = starting_time + timedelta(hours=3)
+
+        ending_time = environ["QUERY_END"]
+        ending_time = datetime.strptime(ending_time, "%Y-%m-%d %H:%M:%S")
+        # Influx is using utc so we need to add 3 hours to get the correct time
+        # during the report building process we will subtract 3 hours
+        ending_time = ending_time + timedelta(hours=3)
+
         # querying influxdb
         try:
-            tag = db_client.query(
-                'SELECT * from "check_iface_traffic" WHERE "time" > {} AND  \
+            query = 'SELECT * from "check_iface_traffic" WHERE "time" >= \'{}\' AND "time" <= \'{}\' AND  \
                 "hostname" = \'{}\' AND "metric" = \'iface-traffic{}\''.format(
-                    TIME_RANGE, link_configs["LINK_NAME"], iface
-                )
+                starting_time, ending_time, link_configs["LINK_NAME"], iface
             )
+            tag = db_client.query(query)
         except Exception as e:
             logger.error("error querying influxdb: %s", e)
             return []  # returning empty list
@@ -65,5 +81,6 @@ class INFLUX(TSDB):
         # with at least 'time' and 'value' keys
         # removing None values
         data = [t for t in tag if t["value"] is not None]
+        # pprint(data)
 
         return data
