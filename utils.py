@@ -8,7 +8,13 @@ import json
 from logging import getLogger
 from datetime import datetime
 
-from config import OUTPUT_IDENT_LEVEL, ALERTA_URL, LOGGER_NAME, EMAILS_TO_ALERT
+from config import (
+    OUTPUT_INDENT_LEVEL,
+    ALERTA_URL,
+    LOGGER_NAME,
+    EMAILS_TO_ALERT,
+    ALERTA_IP,
+)
 
 logger = getLogger(LOGGER_NAME)
 
@@ -20,7 +26,7 @@ def save_json(input: dict, output_path: str):
     logger.info("saving json file to %s", output_path)
     # writing report json
     with open(output_path, "w+") as outfile:
-        json.dump(input, outfile, indent=OUTPUT_IDENT_LEVEL)
+        json.dump(input, outfile, indent=OUTPUT_INDENT_LEVEL)
 
 
 def json_reader(json_file_path: os.path):
@@ -45,7 +51,7 @@ def send_alert(
     data = {
         "environment": "Default",
         "event": event,
-        "resource": "<IP do Alerta>",
+        "resource": ALERTA_IP,
         "origin": "Link Watcher",
         "text": message,
         "severity": severity,
