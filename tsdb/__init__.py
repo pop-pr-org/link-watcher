@@ -4,7 +4,7 @@
 from abc import ABC, abstractmethod
 
 
-class TSDB(ABC):
+class Tsdb(ABC):
     @abstractmethod
     def connect(self):
         """
