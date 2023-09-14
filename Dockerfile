@@ -11,5 +11,4 @@ COPY . /opt/watcher/
 
 WORKDIR /opt/watcher
 
-
-CMD [ "python3", "watcher.py", "-o", "/tmp/watcher"]
+ENTRYPOINT [ "python3", "watcher.py" ]
