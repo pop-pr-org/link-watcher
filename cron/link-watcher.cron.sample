@@ -2,8 +2,8 @@
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 # watcher run
-55 23 * * * root /docker/link-watcher/cron/daily-watcher.sh
+55 23 * * * root /link-watcher/cron/daily-watcher.sh
 # alerta run weekly
-30 8 * * mon root /docker/link-watcher/cron/weekly-alert.sh
+30 8 * * mon root /link-watcher/cron/weekly-alert.sh
 # alerta run monthly
-30 8 1 * * root /docker/link-watcher/cron/monthly-alert.sh
+30 8 1 * * root /link-watcher/cron/monthly-alert.sh
