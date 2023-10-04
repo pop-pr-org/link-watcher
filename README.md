@@ -335,9 +335,7 @@ Os logs do script são armazenados no volume do container, dentro do diretório 
 
 O script está sendo adaptado para ser modularizado. Dessa forma, será possível adicionar novos módulos para extrair informações de fontes da verdade diferentes, como o netbox por exemplo.
 
-No PoP-PR, utilizamos o [InfluxDB](https://www.influxdata.com/) como banco de dados temporal, mas o script pode ser adaptado para utilizar outros bancos de dados temporais.
-
-Para **alterar qualquer um dos dois citados anteriormente**, uma **nova classe deverá ser implementada** no respectivo diretório (tsdb ou irm)
+No PoP-PR, utilizamos o [InfluxDB](https://www.influxdata.com/) como banco de dados temporal, mas o script pode ser adaptado para utilizar outros bancos de dados temporais, veja mais informações no diretório [docs](https://github.com/pop-pr-org/link-watcher/tree/main/docs).
 
 ## Como o PoP-PR utiliza o script
 
@@ -356,7 +354,7 @@ Temos três cronjobs configurados, que irão executar scripts diferentes:
 30 8 1 * * root /docker/link-watcher/cron/monthly-alert.sh
 ```
 
-O primeiro gera o relatório diário, o segundo envia alertas relativos à ultima semana e o terceiro envia alertas relativo ao último mês.
+O primeiro gera o `relatório diário`, o segundo envia alertas relativos à `ultima semana` e o terceiro envia alertas relativo ao `último mês`.
 
 ***
 
