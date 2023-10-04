@@ -44,38 +44,6 @@ class IrmExtractor(Irm):
             ]
         }
         """
+        hosts_speed = {}
 
-        ignore_list = ["EMBRAPA-SOJA"]
-
-        # extract name and speed from netbox from every circuit
-        all_sites = irm_api.dcim.sites.all()
-        all_sites = list(all_sites)
-        logger.info("Got %d sites from Netbox", len(all_sites))
-
-        # empty dict to store the info
-        site_circuits = {"LINKS": []}
-
-        # retrieve all circuits from Netbox with type RNP and status active
-        circuit_rnp = irm_api.circuits.circuit_types.get(slug="rnp")
-        circuits = irm_api.circuits.circuits.filter(
-            type_id=circuit_rnp.id, status="active"
-        )
-
-        # for each circuit, get the site name and the speed
-        for circuit in circuits:
-            # [FIX] should be using circuit.termination_z.site.slug
-            # but this change will break the alerting system
-            site_name = circuit.termination_z.site
-            circuit_speed = circuit.commit_rate * 1000
-
-            # ignore sites in the ignore list
-            if site_name in ignore_list:
-                continue
-
-            site_circuits["LINKS"].append(
-                {"LINK_SPEED": circuit_speed, "LINK_NAME": str(site_name)}
-            )
-
-        logger.info("Got %d circuits from Netbox", len(site_circuits["LINKS"]))
-
-        return site_circuits
+        return hosts_speed
