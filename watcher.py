@@ -10,6 +10,7 @@ import json
 
 from pprint import pprint
 from datetime import datetime, timedelta
+from pytz import timezone as tz
 from dateutil import parser
 from pathlib import Path
 from requests.auth import HTTPBasicAuth
@@ -33,10 +34,11 @@ from config import (
     TSDB_AUTH,
     TSDB_TIME_FORMAT,
     HOSTS_INFO_FILE,
-    TIME_BEGIN,
-    TIME_END,
+    WORK_HOUR_BEGIN,
+    WORK_HOUR_END,
     IGNORE_LIST,
     REPORT_OUTPUT_PATH,
+    OUTPUT_TIMEZONE,
 )
 
 
@@ -66,33 +68,33 @@ is exceding the configured thresholds.",
         help="path where the json output will be stored",
     )
 
-    specify_time_group = parser.add_argument_group(
-        "Time range",
-        "Used to specify the time range to be used in the query.\n\
-If not given, the default time range will be used(from today {}h to today {}h).\n\
-BOTH FLAGS MUST BE BETWEEN QUOTES".format(
-            TIME_BEGIN, TIME_END
+    specify_date_group = parser.add_argument_group(
+        "Date range",
+        "Used to specify the date range to be used in the query.\n\
+If not given, the default date range will be used(from today {}h to today {}h defined in your .env file).\n\
+BOTH FLAGS MUST BE DOUBLE BETWEEN QUOTES".format(
+            WORK_HOUR_BEGIN, WORK_HOUR_END
         ),
     )
 
-    specify_time_group.add_argument(
-        "--time-begin",
+    specify_date_group.add_argument(
+        "--date-begin",
         type=str,
         action="store",
         default=datetime.now()
-        .replace(hour=TIME_BEGIN, minute=0, second=0)
+        .replace(hour=WORK_HOUR_BEGIN, minute=0, second=0)
         .strftime(TSDB_TIME_FORMAT),
-        help='starting time to be used in the query. In the format: "YYYY-MM-DD"',
+        help='starting date to be used in the query. In the format: "YYYY-MM-DD"',
     )
 
-    specify_time_group.add_argument(
-        "--time-end",
+    specify_date_group.add_argument(
+        "--date-end",
         type=str,
         action="store",
         default=datetime.now()
-        .replace(hour=TIME_END, minute=0, second=0)
+        .replace(hour=WORK_HOUR_END, minute=0, second=0)
         .strftime(TSDB_TIME_FORMAT),
-        help='Ending time to be used in the query. In the format: "YYYY-MM-DD"',
+        help='Ending date to be used in the query. In the format: "YYYY-MM-DD"',
     )
 
     alert_group = parser.add_argument_group(
@@ -119,8 +121,8 @@ If none is given, the script will only check the links and generate the report."
     # checking if the user provided a valid time range
     check_tsdb_time_interval(args, parser)
     check_hour_interval()
-    check_time_range_dependency(args, parser)
-    set_tsdb_time_interval(args.time_begin, args.time_end)
+    check_date_range_dependency(args, parser)
+    set_tsdb_date_interval(args.date_begin, args.date_end)
 
     return args
 
@@ -149,7 +151,7 @@ def main():
     for i in range(0, qntd_days_to_check + 1):
         # changing current report time interval
         current_report_query_date_interval = change_tsdb_time_interval(i)
-        set_tsdb_time_interval(
+        set_tsdb_date_interval(
             current_report_query_date_interval["begin"],
             current_report_query_date_interval["end"],
         )
@@ -164,7 +166,7 @@ def main():
                     link_configs["LINK_NAME"],
                 )
                 continue
-            send_link_to_api(link_configs["LINK_NAME"])
+            # send_link_to_api(link_configs["LINK_NAME"])
             check_exceeded_intervals(db_client, current_report, link_configs)
 
         # saving json output
@@ -176,13 +178,15 @@ def main():
 
 def check_hour_interval():
     """
-    Checks if the TIME_BEGIN and TIME_END vars time interval is valid
+    Checks if the WORK_HOUR_BEGIN and WORK_HOUR_END vars time interval is valid
     """
-    if TIME_BEGIN > TIME_END:
+    if WORK_HOUR_BEGIN > WORK_HOUR_END:
         logger.error(
-            "TIME_BEGIN var is greater than TIME_END var. Check your .env file and fix it"
+            "WORK_HOUR_BEGIN var is greater than WORK_HOUR_END var. Check your .env file and fix it"
         )
-        exit(1)
+        raise ValueError(
+            "WORK_HOUR_BEGIN var is greater than WORK_HOUR_END var. Check your .env file and fix it"
+        )
     return
 
 
@@ -197,14 +201,14 @@ def change_tsdb_time_interval(iterator: int) -> dict:
     sum_day = 0 if iterator == 0 else 1
 
     current_report_query_date_begin = datetime.strptime(
-        environ["QUERY_BEGIN"], TSDB_TIME_FORMAT
+        environ["QUERY_DATE_BEGIN"], TSDB_TIME_FORMAT
     ) + timedelta(days=sum_day)
 
     current_report_query_date_end = current_report_query_date_begin.replace(
-        hour=TIME_END
+        hour=WORK_HOUR_END
     )
     current_report_query_date_begin = current_report_query_date_begin.replace(
-        hour=TIME_BEGIN
+        hour=WORK_HOUR_BEGIN
     )
 
     # formatting dates to query TSDB
@@ -223,19 +227,21 @@ def change_tsdb_time_interval(iterator: int) -> dict:
     return current_report_query_date_interval
 
 
-def set_tsdb_time_interval(time_begin: str, time_end: str):
+def set_tsdb_date_interval(date_begin: str, date_end: str):
     """
-    Set the environment variables QUERY_BEGIN and QUERY_END to be used in the query
+    Set the environment variables QUERY_DATE_BEGIN and QUERY_DATE_END to be used in the query
     """
-    time_begin = parser.parse(time_begin).replace(hour=TIME_BEGIN, minute=0, second=0)
-    time_end = parser.parse(time_end).replace(hour=TIME_END, minute=0, second=0)
+    date_begin = parser.parse(date_begin).replace(
+        hour=WORK_HOUR_BEGIN, minute=0, second=0
+    )
+    date_end = parser.parse(date_end).replace(hour=WORK_HOUR_END, minute=0, second=0)
     # setting env vars
-    environ["QUERY_BEGIN"] = str(time_begin)
-    environ["QUERY_END"] = str(time_end)
+    environ["QUERY_DATE_BEGIN"] = str(date_begin)
+    environ["QUERY_DATE_END"] = str(date_end)
 
 
 def set_report_date() -> datetime:
-    report_date = environ["QUERY_BEGIN"].split(" ")[0]
+    report_date = environ["QUERY_DATE_BEGIN"].split(" ")[0]
     report_date = datetime.strptime(report_date, "%Y-%m-%d")
     # set the report date to %d-%m-%y
     report_date = report_date.strftime("%d-%m-%y")
@@ -244,38 +250,38 @@ def set_report_date() -> datetime:
 
 def extract_qntd_days_to_check() -> int:
     """
-    Extracts the number of days to check from the --time-begin and --time-end flags
+    Extracts the number of days to check from the --date-begin and --date-end flags
     @return: number of days to check
     """
 
     # extracting env vars
-    time_begin = environ["QUERY_BEGIN"]
-    time_end = environ["QUERY_END"]
+    date_begin = environ["QUERY_DATE_BEGIN"]
+    date_end = environ["QUERY_DATE_END"]
 
     # parsing dates to datetime
-    time_begin = str(time_begin)
-    time_end = str(time_end)
+    date_begin = str(date_begin)
+    date_end = str(date_end)
 
     # formatting dates to query TSDB
-    time_begin = datetime.strptime(time_begin, TSDB_TIME_FORMAT)
-    time_end = datetime.strptime(time_end, TSDB_TIME_FORMAT)
+    date_begin = datetime.strptime(date_begin, TSDB_TIME_FORMAT)
+    date_end = datetime.strptime(date_end, TSDB_TIME_FORMAT)
 
-    qntd_days_to_check = (time_end - time_begin).days
+    qntd_days_to_check = (date_end - date_begin).days
     return qntd_days_to_check
 
 
-def check_time_range_dependency(
+def check_date_range_dependency(
     args: argparse.Namespace, parser: argparse.ArgumentParser
 ):
     """
-    Checks if both time_start and time_end are given
+    Checks if both date_start and date_end flags are given
     """
 
-    if (args.time_begin and not args.time_end) or (
-        args.time_end and not args.time_begin
+    if (args.date_begin and not args.date_end) or (
+        args.date_end and not args.date_begin
     ):
-        logger.error("--time-begin and --time-end are required together")
-        parser.error("--time-begin and --time-end are required together")
+        logger.error("--date-begin and --date-end are required together")
+        parser.error("--date-begin and --date-end are required together")
 
     return
 
@@ -284,14 +290,14 @@ def check_tsdb_time_interval(args: argparse.Namespace, parser: argparse.Argument
     """
     Checks if the time interval is valid
     """
-    time_begin = args.time_begin
-    time_end = args.time_end
+    date_begin = args.date_begin
+    date_end = args.date_end
 
-    if time_begin > time_end:
-        logger.error("flag time-begin is greater than time-end")
-        logger.error("time-begin: %s", time_begin)
-        logger.error("time-end: %s", time_end)
-        parser.error("flag time-begin is greater than time-end")
+    if date_begin > date_end:
+        logger.error("flag date-begin is greater than date-end")
+        logger.error("date-begin: %s", date_begin)
+        logger.error("date-end: %s", date_end)
+        parser.error("flag date-begin is greater than date-end")
 
     return
 
@@ -361,12 +367,16 @@ def check_interval_size(
         return len(data)
 
     interval_counter = len(reports[link_configs["LINK_NAME"]][iface]["intervals"]) + 1
+    current_timezone_offset = (
+        datetime.now(tz(OUTPUT_TIMEZONE)).utcoffset().total_seconds() / 3600
+    )
 
     # formatting start time display
     # it has to be the time of the previous point 'cause if the current point is above limit,
     # it means that the previous point was the start of the interval
     point_dt = zulu.parse(data[i - 1]["time"])
-    time_begin = point_dt.subtract(hours=3).format("%d/%m/%y-%H:%M:%S")
+    time_begin = point_dt + timedelta(hours=current_timezone_offset)
+    time_begin = time_begin.format("%d/%m/%y-%H:%M:%S")
 
     # extracting values for better readability
     max_value = data[i]["value"] * 8  # max value of the interval in bits
@@ -407,7 +417,8 @@ def check_interval_size(
 
     # formatting end time display
     point_dt = zulu.parse(data[i]["time"])
-    time_end = point_dt.subtract(hours=3).format("%d/%m/%y-%H:%M:%S")
+    time_end = point_dt + timedelta(hours=current_timezone_offset)
+    time_end = time_end.format("%d/%m/%y-%H:%M:%S")
 
     # Mean value of interval (in bytes)
     mean_value = round((min_value + max_value) / 2, 1)
@@ -437,7 +448,6 @@ def check_interval_size(
         min_value,
     )
 
-    #
     link_configs_api_info = {
         "LINK_NAME": link_configs["LINK_NAME"],
         "LINK_SPEED": link_configs["LINK_SPEED"],
@@ -445,16 +455,16 @@ def check_interval_size(
         "LINK_HISTERESYS": link_configs["LINK_HISTERESYS"],
     }
 
-    send_interval_to_api(
-        link_configs_api_info,
-        iface,
-        time_begin,
-        time_end,
-        exceeded_time,
-        mean_value,
-        max_value,
-        min_value,
-    )
+    # send_interval_to_api(
+    #     link_configs_api_info,
+    #     iface,
+    #     time_begin,
+    #     time_end,
+    #     exceeded_time,
+    #     mean_value,
+    #     max_value,
+    #     min_value,
+    # )
     return i
 
 
@@ -588,9 +598,11 @@ def check_exceeded_intervals(db_client, reports: dict, link_configs: dict):
     # queries for rx and tx
     logger.info("checking ifaces for %s", link_configs["LINK_NAME"])
 
+    # querying for rx
     data = TsdbExtractor.query_iface_traffic(link_configs, "rx", db_client)
     check_link_data(data, reports, link_configs, "rx")
 
+    # querying for tx
     data = TsdbExtractor.query_iface_traffic(link_configs, "tx", db_client)
     check_link_data(data, reports, link_configs, "tx")
 
