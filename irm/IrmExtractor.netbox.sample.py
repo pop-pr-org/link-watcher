@@ -45,7 +45,7 @@ class IrmExtractor(Irm):
         }
         """
 
-        ignore_list = ["EMBRAPA-SOJA"]
+        ignore_list = ["link1", "link2"]
 
         # extract name and speed from netbox from every circuit
         all_sites = irm_api.dcim.sites.all()
