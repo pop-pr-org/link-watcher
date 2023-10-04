@@ -28,12 +28,16 @@ def init_logging():
                     "backupCount": BACKUP_COUNT,  # mantém os 4 arquivos de log anteriores
                     "filename": log_file,
                     "formatter": "default",
-                }
+                },
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "default",
+                },
             },
             "loggers": {
                 LOGGER_NAME: {
                     "level": LOGGING_LEVEL,
-                    "handlers": ["default"],
+                    "handlers": ["default", "console"],
                     "propagate": False,
                 },
                 "root": {"handlers": ["default"], "level": LOGGING_LEVEL},
