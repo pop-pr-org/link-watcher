@@ -13,10 +13,11 @@ from config import (
     ALERTA_URL,
     LOGGER_NAME,
     EMAILS_TO_ALERT,
+    TELEGRAM_CHAT_IDS,
     ALERTA_IP,
 )
 
-logger = getLogger(LOGGER_NAME)
+logger = getLogger(__name__)
 
 
 def save_json(input: dict, output_path: str):
@@ -29,7 +30,7 @@ def save_json(input: dict, output_path: str):
         json.dump(input, outfile, indent=OUTPUT_INDENT_LEVEL)
 
 
-def json_reader(json_file_path: os.path):
+def json_reader(json_file_path: str):
     """
     reads a json file and returns a dict with the content
     """
@@ -60,8 +61,8 @@ def send_alert(
         "service": ["watcherCheck"],
         "group": "watcher",
         "rawData": {
-            "contacts": ["email"],
-            "telegram": [],
+            "contacts": ["email", "telegram"],
+            "telegram": TELEGRAM_CHAT_IDS,
             "email": EMAILS_TO_ALERT,
             "sms": [],
             "ticket": [],
