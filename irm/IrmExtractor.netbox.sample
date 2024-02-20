@@ -6,10 +6,10 @@ import pynetbox
 
 from pprint import pprint
 from logging import getLogger
-from config import LOGGER_NAME
+from config import LOGGER_NAME, IGNORE_LIST
 
 
-logger = getLogger(LOGGER_NAME)
+logger = getLogger(__name__)
 
 
 class IrmExtractor(Irm):
@@ -45,7 +45,7 @@ class IrmExtractor(Irm):
         }
         """
 
-        ignore_list = ["link1", "link2"]
+        ignore_list = []
 
         # extract name and speed from netbox from every circuit
         all_sites = irm_api.dcim.sites.all()
