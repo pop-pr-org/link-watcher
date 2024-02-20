@@ -1,9 +1,0 @@
-# link-watcher cron
-
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-# watcher run
-55 23 * * * root /link-watcher/cron/daily-watcher.sh
-# alerta run weekly
-30 8 * * mon root /link-watcher/cron/weekly-alert.sh
-# alerta run monthly
-30 8 1 * * root /link-watcher/cron/monthly-alert.sh
