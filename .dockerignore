@@ -3,3 +3,8 @@ __pycache__/
 .git*
 volumes/
 .venv/
+cron/
+reports/
+*.sample
+Readme.md
+*.log
