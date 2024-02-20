@@ -1,0 +1,22 @@
+{
+      "HOST_A": {
+            "LINK_SPEED": 500000000,
+            "LINK_MAX_TRAFFIC_PERCENTAGE": 0.2,
+            "LINK_HISTERESYS": 0.05
+      },
+      "HOST_B": {
+            "LINK_SPEED": 500000000,
+            "LINK_MAX_TRAFFIC_PERCENTAGE": 0.2,
+            "LINK_HISTERESYS": 0.05
+      },
+      "HOST_C": {
+            "LINK_SPEED": 700000000,
+            "LINK_MAX_TRAFFIC_PERCENTAGE": 0.2,
+            "LINK_HISTERESYS": 0.05
+      },
+      "HOST_D": {
+            "LINK_SPEED": 700000000,
+            "LINK_MAX_TRAFFIC_PERCENTAGE": 0.2,
+            "LINK_HISTERESYS": 0.05
+      }
+}
