@@ -7,12 +7,6 @@ from config import LOGGING_LEVEL, MAX_LOG_SIZE, BACKUP_COUNT, LOG_FILE, LOGGER_N
 
 
 def init_logging():
-    # if log_file does not exist
-    # default to ./watcher.log
-    if not Path(LOG_FILE).is_file():
-        log_file = "./watcher.log"
-    else:
-        log_file = LOG_FILE
     dictConfig(
         {
             "version": 1,
@@ -26,7 +20,7 @@ def init_logging():
                     "class": "logging.handlers.RotatingFileHandler",
                     "maxBytes": 1024 * 1024 * MAX_LOG_SIZE,  # MAX_LOG_SIZE MB
                     "backupCount": BACKUP_COUNT,  # mantém os 4 arquivos de log anteriores
-                    "filename": log_file,
+                    "filename": LOG_FILE,
                     "formatter": "default",
                 },
                 "console": {
