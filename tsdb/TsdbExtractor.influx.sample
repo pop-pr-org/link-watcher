@@ -11,7 +11,7 @@ from tsdb import Tsdb
 from influxdb import InfluxDBClient
 from config import LOGGER_NAME, OUTPUT_TIMEZONE, TSDB_TIME_FORMAT
 
-logger = getLogger(LOGGER_NAME)
+logger = getLogger(__name__)
 
 
 class TsdbExtractor(Tsdb):
@@ -103,5 +103,59 @@ class TsdbExtractor(Tsdb):
         # removing None values
         data = [t for t in tag if t["value"] is not None]
         # pprint(data)
+
+        return data
+
+    def query_iface_percentile(
+        self,
+        percentile: str,
+        starting_time,
+        ending_time,
+        current_link_name: str,
+        iface: str,
+        db_client: InfluxDBClient,
+    ):
+        """
+        query TSDB for a given host interface (rx|tx) percentile of the traffic with a set time range
+
+        update the reports dict with the percentile value
+        """
+        # set the time format
+        timezone_offset = (
+            datetime.now(tz(OUTPUT_TIMEZONE)).utcoffset().total_seconds() / 3600
+        )
+
+        starting_time = datetime.strptime(starting_time, TSDB_TIME_FORMAT)
+        # Influx is using utc so we need to add/subtract the timezone offset
+        starting_time = starting_time - timedelta(hours=timezone_offset)
+
+        ending_time = datetime.strptime(ending_time, TSDB_TIME_FORMAT)
+        # Influx is using utc so we need to add/subtract the timezone offset
+        ending_time = ending_time - timedelta(hours=timezone_offset)
+        percentile = float(PERCENTILE)
+        try:
+            query = "SELECT percentile(\"value\",{}) FROM \"check_iface_traffic\" WHERE \"hostname\" = '{}' AND \
+                \"metric\" = 'iface-traffic{}' AND \"ifdesc\" = 'ge-0/0/0.0' AND \"switch\" = 'RT-{}' AND time >= '{}' AND time <= '{}'".format(
+                percentile,
+                current_link_name.upper(),
+                iface,
+                current_link_name.upper(),
+                starting_time,
+                ending_time,
+            )
+            tag = db_client.query(query)
+        except Exception as e:
+            logger.error("error querying influxdb: %s", e)
+            return 0
+
+        tag = tag.get_points()
+        # accessing the first element of the list(an ordered dict) and then accessing the percentile key
+        data = [t for t in tag if t["percentile"] is not None]
+
+        # multiplying by 8 to convert from bytes to bits
+        if data:
+            data = data[0]["percentile"] * 8
+        else:
+            data = 0
 
         return data

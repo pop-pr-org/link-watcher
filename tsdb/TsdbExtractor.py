@@ -9,9 +9,9 @@ from os import environ
 
 from tsdb import Tsdb
 from influxdb import InfluxDBClient
-from config import LOGGER_NAME, OUTPUT_TIMEZONE, TSDB_TIME_FORMAT
+from config import LOGGER_NAME, OUTPUT_TIMEZONE, TSDB_TIME_FORMAT, PERCENTILE
 
-logger = getLogger(LOGGER_NAME)
+logger = getLogger("watcher")
 
 
 class TsdbExtractor(Tsdb):
@@ -34,21 +34,13 @@ class TsdbExtractor(Tsdb):
         return client
 
     def query_iface_traffic(
-        link_configs: dict, iface: str, db_client: InfluxDBClient
+        self, current_link_name: str, iface: str, db_client: InfluxDBClient
     ) -> list:
         """
         query TSDB for a given host interface (rx|tx) traffic with a set time range
 
         Params:
-        - link_configs: dict with the following format:
-            {
-                "LINKS": [
-                    {
-                        "LINK_SPEED": speed in bits,
-                        "LINK_NAME": name of the link in your IRM
-                    },
-                ]
-            }
+        - current_link_name: current link name
         - iface: interface name (rx|tx)
         - db_client: tsdb client object
 
@@ -66,5 +58,25 @@ class TsdbExtractor(Tsdb):
         If no data is found, returns an empty list
 
         """
+
         data = []
+
+        return data
+
+    def query_iface_percentile(
+        self,
+        percentile: str,
+        starting_time,
+        ending_time,
+        current_link_name: str,
+        iface: str,
+        db_client: InfluxDBClient,
+    ):
+        """
+        query TSDB for a given host interface (rx|tx) percentile of the traffic with a set time range
+
+        Return the percentile value of the traffic for the given time range
+        """
+        data = []
+
         return data

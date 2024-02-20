@@ -1,19 +1,15 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-from abc import ABC, abstractmethod
 
-
-class Tsdb(ABC):
-    @abstractmethod
+class Tsdb:
     def connect(self):
         """
         Connect to TSDB and return the client object
         """
         raise (NotImplementedError)
 
-    @abstractmethod
-    def query_iface_traffic(self, link_configs: dict, iface: str, client) -> list:
+    def query_iface_traffic(link_configs: dict, iface: str, client) -> list:
         """
         query TSDB for a given host interface (rx|tx) traffic with a set time range
 
@@ -42,6 +38,21 @@ class Tsdb(ABC):
         ]
 
         If no data is found, returns an empty list
+
+        """
+        raise (NotImplementedError)
+
+    def query_iface_percentiles(
+        PERCENTILE: str,
+        starting_time: str,
+        ending_time: str,
+        reports: dict,
+        current_link_name: dict,
+        iface: str,
+        db_client,
+    ) -> float:
+        """
+        query TSDB for a given host interface (rx|tx), its
 
         """
         raise (NotImplementedError)
